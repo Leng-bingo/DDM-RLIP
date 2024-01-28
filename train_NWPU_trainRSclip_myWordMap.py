@@ -17,8 +17,8 @@ import pickle
 import argparse
 import json
 from typing import Tuple, Optional, Union
-from clip1 import clip
-from clip1.clip import _transform
+from rsclip import clip
+from rsclip.clip import _transform
 import math
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -35,8 +35,6 @@ from myWordMap_misc import generate2_adpt_if, evaluate_on_coco_caption
 import torch.nn.functional as F
 
 from tokenizers import decoders, Tokenizer
-import time
-import logging
 
 def extract(a, t, x_shape):
     b, *_ = t.shape
@@ -415,7 +413,7 @@ class ClipCaptionModel(nn.Module):
         configuration.update({'eos_token_id': int(self.word_len) - 1})
         configuration = GPT2Config(**configuration)
         self.gpt = GPT2LMHeadModel(configuration)
-        self.clip_model, _ = clip.load("ViT-B/16", device='cpu', jit=False)
+        self.clip_model, _ = clip.load("clip-rsicd-v2", device='cpu', jit=False)
         self.clip_model.requires_grad_(False)
         self.clip_model.visual.requires_grad_(True)
         self.clip_model.visual.ln_post.requires_grad_(False)
@@ -735,8 +733,6 @@ def val(model, epoch, val_dataloader, args):
         for key in val_loss_all.keys():
             log_dict[key] = torch.tensor(val_loss_all[key]).mean().item()
         print(log_dict)
-        logger.info(epoch)
-        logger.info(result)
         # with open('results_loss.json', 'a') as fp:
         #     json.dump(log_dict, fp, indent=4)
     return result
@@ -842,7 +838,7 @@ def parse_args():
     parser.add_argument('--save_every', type=int, default=480)
     parser.add_argument('--prefix_length', type=int, default=10)
     parser.add_argument('--prefix_length_clip', type=int, default=10)
-    parser.add_argument('--bs', type=int, default=64)
+    parser.add_argument('--bs', type=int, default=128)
     parser.add_argument('--lr', type=float, default=2e-4)
     # new
     parser.add_argument('--clip_lr', type=float, default=0.1)
@@ -851,7 +847,7 @@ def parse_args():
     parser.add_argument('--mapping_type', type=str, default='mlp', help='mlp/transformer')
     parser.add_argument('--num_layers', type=int, default=8)
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--tag', default='clip_mywordmap_bs128_lr2e4',
+    parser.add_argument('--tag', default='clip_myword_bs128_lr2e4',
                         help='tag of job, used for wandb and output')
     parser.add_argument('--is_rn', dest='is_rn', action='store_true')
     parser.add_argument('--normalize_prefix', dest='normalize_prefix', action='store_true')
@@ -932,31 +928,22 @@ def main(args):
                 {'model': model.module.state_dict()},
                 os.path.join(args.out_dir, f"{args.tag}-best.pt"),
             )
+            torch.save(
+                {'model': model.module.state_dict(), 'lr_scheduler': lr_scheduler.state_dict(),
+                 'optimizer': optimizer.state_dict(), 'scaler': scaler.state_dict()},
+                os.path.join(args.out_dir, f"{args.tag}-fine-best.pt"),
+            )
 
 
 if __name__ == '__main__':
     # 测试
-    # python -m torch.distributed.launch --nproc_per_node 4 train_NWPU_clip_myWordMap.py
+    # python -m torch.distributed.launch --nproc_per_node 4 train_UCM_clip_myWordMap.py
 
     import warnings
+
     warnings.filterwarnings('ignore')
 
     args = parse_args()
-
-    nowtime = time.strftime('%m_%d_%H_%M_%S', time.localtime(time.time()))
-    # print(time.strftime('%m-%d-%H:%M:%S', time.localtime(time.time())))
-
-    logger = logging.getLogger(__name__)
-    logger.setLevel(level=logging.INFO)
-    log_name = './log/' + args.tag + '_' + nowtime + '.txt'
-    handler = logging.FileHandler(log_name)
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-    # logger.info('ceshi')
-
     debug = False
     if debug:
         os.environ['MASTER_ADDR'] = 'localhost'
