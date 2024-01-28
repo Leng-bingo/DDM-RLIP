@@ -3,6 +3,8 @@
 ## Discrete Diffusion Models with Refined Language–Image Pre-trained Representations for Remote Sensing Image Captioning
 
 - 包括Sydney、UCM、NUPU的image caption数据集训练方法
+- 后续更新具体训练方法
+
 ```bash
 dataset=Sydney
 batch_size=128
