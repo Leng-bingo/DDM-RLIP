@@ -26,3 +26,13 @@ tmux kill-session -t train_${dataset}
 
 sleep 5
 ```
+## 如果使用DDM-RLIP，请引用以下文章
+```
+@article{leng2024discrete,
+  title={Discrete diffusion models with Refined Language--Image Pre-trained representations for remote sensing image captioning},
+  author={Leng, Guannan and Xiong, Yu-Jie and Qiu, Chunping and Guo, Congzhou},
+  journal={Pattern Recognition Letters},
+  year={2024},
+  publisher={Elsevier}
+}
+```
